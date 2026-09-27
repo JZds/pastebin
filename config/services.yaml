@@ -1,0 +1,13 @@
+
+    App\Health\DoctrineMySQLPinger:
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+
+    App\Health\RedisPinger:
+        arguments:
+            $redis: '@Redis'
+
+    App\Controller\HealthController:
+        arguments:
+            $mysqlPinger: '@App\Health\DoctrineMySQLPinger'
+            $redisPinger: '@App\Health\RedisPinger'
