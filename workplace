@@ -1,0 +1,128 @@
+You are setting up a GLOBAL, self-improving agent environment for my machine.
+It must apply to every repository I open with the Cursor agent CLI (`agent`),
+not one project. Goal: I write a spec, agents execute and verify their own
+work, I review results, and the setup improves over time without me pointing
+out mistakes. Work in phases. Stop for my approval at the end of Phases 2
+and 3. Do not modify any repository's production code at any point.
+
+## Phase 1: Research (web) and verify the tool (local)
+A. Web research. Read primary sources (official docs, changelogs, engineering
+   blogs; prefer recent and date-stamped). Cover:
+   - Cursor CLI: exactly which GLOBAL config it loads (user-level rules,
+     AGENTS.md/CLAUDE.md handling, hooks, custom commands, MCP config,
+     permissions/cli-config, headless/non-interactive mode and flags). Note
+     what differs between the IDE and the CLI.
+   - Agent instruction files, skills, subagents: what is effective vs bloated
+   - Hooks and automated feedback loops (post-edit lint/test, stop hooks)
+   - Plan-first / spec-driven workflows; parallel worktrees; background agents
+   - Agent-driven review and CI gating
+   - Self-improving setups: retrospectives, failure mining, learnings files,
+     scheduled maintenance agents, evals for rule changes
+   - Permission/sandbox models; protecting risky code paths
+   - Failure modes: context bloat, rule drift, agents gaming tests, agents
+     editing their own guardrails
+B. Empirical verification. Do not trust docs alone. In a scratch directory,
+   test what the CLI actually loads globally (place marker rules/commands/
+   hooks in candidate global locations and check whether `agent` sees them),
+   and confirm the exact flags for headless runs.
+Output: a brief with source links and dates, consensus vs contested, and a
+verified table of "global mechanism -> location -> confirmed working?".
+Flag anything unverified.
+
+## Phase 2: Survey my machine (read-only)
+1. Existing global config: ~/.cursor, ~/.agents or similar, shell aliases,
+   existing user rules, MCP servers, permissions.
+2. Find my repos (ask me for root directories if unclear; don't crawl the
+   whole disk). For each: languages, build/test/lint commands and whether they
+   pass, existing AGENTS.md/rules, CI, test coverage in risky areas.
+3. Identify recurring patterns across repos (shared stack, shared
+   conventions, shared danger zones such as payments, migrations, state
+   machines, auth, PSP integrations, compliance).
+4. Look for evidence of how I've worked with agents so far (existing rules,
+   recurring corrections in git history).
+Output: gap analysis vs the Phase 1 brief. Wait for approval.
+
+## Phase 3: Propose the design (no changes yet)
+Architecture: a single git repo, `~/agent-home`, is the source of truth and
+is symlinked/installed into the verified global locations. Propose exact
+contents for:
+
+1. GLOBAL layer (applies everywhere; short, universal, behavior-changing):
+   - Global rules: working principles (plan before non-trivial edits, run the
+     repo's verification before declaring done, never weaken or delete tests
+     to make them pass, never touch prod credentials, stop and ask on
+     ambiguous or high-risk changes, summarize what changed and what was
+     verified).
+   - Global safety: permission allowlist/denylist, no network to real PSPs,
+     no destructive git or shell commands without confirmation.
+   - Global hooks: post-edit checks, session-end capture (see loop).
+   - Global custom commands, at least:
+     * `bootstrap-repo`: when I enter a repo lacking agent setup, investigate
+       it read-only and PROPOSE a repo-local AGENTS.md (<200 lines, links over
+       duplication), path-scoped rules for risky areas, and a single `verify`
+       command (format, lint, types, tests; non-zero on failure). Repo-local
+       files are created only after I approve.
+     * `plan`: writes a plan to `docs/plans/<task>.md` and waits for approval.
+     * `review`: reviews a diff against the spec and the rules before I see it.
+     * `retro`: end-of-task reflection feeding the learnings inbox.
+2. REPO layer: how repo-specific facts (commands, architecture, conventions,
+   danger zones) live in each repo's own AGENTS.md/rules, and how global and
+   repo layers compose without duplication or conflict. Propose a repo
+   registry (`~/agent-home/repos.md`) listing repos and their verify commands.
+3. Task template: Goal, Context/links, Constraints, Files likely involved,
+   Out of scope, Acceptance criteria (machine-checkable), Verification.
+4. Test strategy guidance, applied per repo when bootstrapping:
+   characterization tests before changing risky legacy behavior; property
+   tests for state machines and invariants; contract tests for external APIs.
+   Propose these per repo, ranked by risk. Do not write them without approval.
+5. THE SELF-IMPROVEMENT LOOP (below), including the scheduler (launchd/cron)
+   and headless `agent` invocation, using verified flags only.
+
+## Self-improvement loop (design requirements)
+- Capture: on session end, a hook appends a structured entry to
+  `~/agent-home/learnings/inbox/` tagged with repo name: task, what went
+  wrong or was slow, missing information, what fixed it, verify pass/fail on
+  first attempt. Entries must contain no secrets or customer/payment data;
+  add a redaction step.
+- Mine (weekly, scheduled, headless): read the inbox plus signals from git
+  history in registered repos (reverts, fix-after-agent commits, CI failures,
+  review comments). Cluster recurring problems and classify each as:
+  a) universal -> proposal against the GLOBAL layer
+  b) repo-specific -> proposal against that repo's AGENTS.md/rules/tests
+  c) missing tooling -> propose a lint check, test, hook, or command instead
+     of more prose (prefer enforcement over instructions)
+- Propose: write each change as a branch/PR in `~/agent-home` (global) or as
+  a branch in the affected repo, with evidence linked to inbox entries.
+  Every rule must trace to observed failures.
+- Prune: propose deleting stale, redundant, or never-triggered rules.
+  Enforce a size budget on global rules and on each AGENTS.md.
+- Evaluate: keep a small set of golden tasks per repo (real past tasks with
+  known-good outcomes). Rule changes must not regress them.
+- Refresh (monthly): re-run Phase 1 research and propose updates, including
+  re-verifying what the CLI loads globally, since it changes between releases.
+- Human gate: NOTHING self-applies. Proposals are branches I merge. The agent
+  may not modify permissions, hooks, the scheduler, or the improvement loop
+  itself without my explicit approval; enforce with file permissions, a
+  protected branch, or a review-required check where possible, and state
+  honestly where enforcement is only a convention.
+- Metrics: a simple file tracking first-pass verify success, my corrections
+  per session, reverts, and time-to-done, updated by the weekly job.
+
+## Phase 4: Implement (after approval)
+1. Create `~/agent-home`, install/symlink into verified global locations,
+   and back up anything existing before overwriting.
+2. Implement global rules, hooks, commands, permissions.
+3. Implement capture, redaction, the weekly mining job, and the scheduler.
+4. Dry run in one real repo: run `bootstrap-repo`, do one small real task
+   through plan -> execute -> verify -> review -> retro, then run the mining
+   job on it. Report where the process broke or was ambiguous and fix it.
+5. Give me a one-page summary: what lives where, how to disable everything,
+   and how to roll back.
+
+## Rules throughout
+- Don't modify production code. Don't guess; list open questions.
+- Ask before touching anything outside ~/agent-home and the agreed global
+  config locations.
+- Cite sources for adopted practices; mark opinion vs evidence.
+- Every line in global rules and AGENTS.md must change agent behavior.
+- Report anything surprising or risky you find on the machine or in the repos.
