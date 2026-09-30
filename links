@@ -1,1 +1,7 @@
 https://www.skills.sh/
+- npx skills add https://github.com/mattpocock/skills --skill handoff
+- npx skills add https://github.com/vercel-labs/skills --skill find-skills
+- npx skills add https://github.com/mattpocock/skills --skill grill-me
+- npx skills add https://github.com/mattpocock/skills --skill improve-codebase-architecture
+- npx skills add https://github.com/mattpocock/skills --skill tdd
+- npx skills add https://github.com/mattpocock/skills --skill improve-codebase-architecture
